@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 import oauth2_provider.generators
 import oauth2_provider.validators
-from oauth2_provider.settings import oauth2_settings
 
 
 class Migration(migrations.Migration):
@@ -89,7 +88,7 @@ class Migration(migrations.Migration):
                 ('expires', models.DateTimeField()),
                 ('redirect_uri', models.CharField(max_length=255)),
                 ('scope', models.TextField(blank=True)),
-                ('application', models.ForeignKey(to=swapper.swappable_setting('oauth2_provider', 'Application'),
+                ('application', models.ForeignKey(to=swapper.get_model_name('oauth2_provider', 'Application'),
                                                   on_delete=models.CASCADE)),
                 ('user',
                  models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='oauth2_provider_grant',
@@ -128,6 +127,7 @@ class Migration(migrations.Migration):
             model_name='AccessToken',
             name='source_refresh_token',
             field=models.OneToOneField(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL,
-                                       to=swapper.get_model_name('oauth2_provider', 'RefreshToken'), related_name="refreshed_access_token"),
+                                       to=swapper.get_model_name('oauth2_provider', 'RefreshToken'),
+                                       related_name="refreshed_access_token"),
         ),
     ]
