@@ -2,7 +2,7 @@ import logging
 from datetime import timedelta
 from urllib.parse import parse_qsl, urlparse
 
-from django.apps import apps
+import swapper
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.db import models, transaction
@@ -14,7 +14,6 @@ from .generators import generate_client_id, generate_client_secret
 from .scopes import get_scopes_backend
 from .settings import oauth2_settings
 from .validators import RedirectURIValidator, WildcardSet
-
 
 logger = logging.getLogger(__name__)
 
@@ -183,7 +182,7 @@ class Application(AbstractApplication):
     objects = ApplicationManager()
 
     class Meta(AbstractApplication.Meta):
-        swappable = "OAUTH2_PROVIDER_APPLICATION_MODEL"
+        swappable = swapper.swappable_setting('oauth2_provider', 'Application')
 
     def natural_key(self):
         return (self.client_id,)
@@ -220,7 +219,7 @@ class AbstractGrant(models.Model):
     )
     code = models.CharField(max_length=255, unique=True)  # code comes from oauthlib
     application = models.ForeignKey(
-        oauth2_settings.APPLICATION_MODEL, on_delete=models.CASCADE
+        swapper.get_model_name('oauth2_provider', 'Application'), on_delete=models.CASCADE
     )
     expires = models.DateTimeField()
     redirect_uri = models.CharField(max_length=255)
@@ -254,7 +253,7 @@ class AbstractGrant(models.Model):
 
 class Grant(AbstractGrant):
     class Meta(AbstractGrant.Meta):
-        swappable = "OAUTH2_PROVIDER_GRANT_MODEL"
+        swappable = swapper.swappable_setting('oauth2_provider', 'Grant')
 
 
 class AbstractAccessToken(models.Model):
@@ -278,12 +277,12 @@ class AbstractAccessToken(models.Model):
     )
     source_refresh_token = models.OneToOneField(
         # unique=True implied by the OneToOneField
-        oauth2_settings.REFRESH_TOKEN_MODEL, on_delete=models.SET_NULL, blank=True, null=True,
+        swapper.get_model_name('oauth2_provider', 'RefreshToken'), on_delete=models.SET_NULL, blank=True, null=True,
         related_name="refreshed_access_token"
     )
     token = models.CharField(max_length=255, unique=True, )
     application = models.ForeignKey(
-        oauth2_settings.APPLICATION_MODEL, on_delete=models.CASCADE, blank=True, null=True,
+        swapper.get_model_name('oauth2_provider', 'Application'), on_delete=models.CASCADE, blank=True, null=True,
     )
     expires = models.DateTimeField()
     scope = models.TextField(blank=True)
@@ -347,7 +346,7 @@ class AbstractAccessToken(models.Model):
 
 class AccessToken(AbstractAccessToken):
     class Meta(AbstractAccessToken.Meta):
-        swappable = "OAUTH2_PROVIDER_ACCESS_TOKEN_MODEL"
+        swappable = swapper.swappable_setting('oauth2_provider', 'AccessToken')
 
 
 class AbstractRefreshToken(models.Model):
@@ -371,9 +370,9 @@ class AbstractRefreshToken(models.Model):
     )
     token = models.CharField(max_length=255)
     application = models.ForeignKey(
-        oauth2_settings.APPLICATION_MODEL, on_delete=models.CASCADE)
+        swapper.get_model_name('oauth2_provider', 'Application'), on_delete=models.CASCADE)
     access_token = models.OneToOneField(
-        oauth2_settings.ACCESS_TOKEN_MODEL, on_delete=models.SET_NULL, blank=True, null=True,
+        swapper.get_model_name('oauth2_provider', 'AccessToken'), on_delete=models.SET_NULL, blank=True, null=True,
         related_name="refresh_token"
     )
 
@@ -412,27 +411,27 @@ class AbstractRefreshToken(models.Model):
 
 class RefreshToken(AbstractRefreshToken):
     class Meta(AbstractRefreshToken.Meta):
-        swappable = "OAUTH2_PROVIDER_REFRESH_TOKEN_MODEL"
+        swappable = swapper.swappable_setting('oauth2_provider', 'RefreshToken')
 
 
 def get_application_model():
     """ Return the Application model that is active in this project. """
-    return apps.get_model(oauth2_settings.APPLICATION_MODEL)
+    return swapper.load_model('oauth2_provider', 'Application')
 
 
 def get_grant_model():
     """ Return the Grant model that is active in this project. """
-    return apps.get_model(oauth2_settings.GRANT_MODEL)
+    return swapper.load_model('oauth2_provider', 'Grant')
 
 
 def get_access_token_model():
     """ Return the AccessToken model that is active in this project. """
-    return apps.get_model(oauth2_settings.ACCESS_TOKEN_MODEL)
+    return swapper.load_model('oauth2_provider', 'AccessToken')
 
 
 def get_refresh_token_model():
     """ Return the RefreshToken model that is active in this project. """
-    return apps.get_model(oauth2_settings.REFRESH_TOKEN_MODEL)
+    return swapper.load_model('oauth2_provider', 'RefreshToken')
 
 
 def clear_expired():
